@@ -1,5 +1,6 @@
 
 import 'package:flutter/material.dart';
+
 import '../models/agendamento.dart';
 import '../repositories/agendamento_repository.dart';
 
@@ -13,23 +14,34 @@ class AppointmentsScreen extends StatefulWidget {
 
 class _AppointmentsScreenState extends State<AppointmentsScreen> {
   final AgendamentoRepository _repository = AgendamentoRepository();
+
   bool _carregando = true;
 
-@override
-void initState() {
-  super.initState();
-  _carregarAgendamentos();
-}
+  @override
+  void initState() {
+    super.initState();
+    _carregarAgendamentos();
+  }
 
-Future<void> _carregarAgendamentos() async {
-  await _repository.carregarAgendamentos();
+  Future<void> _carregarAgendamentos() async {
+    try {
+      await _repository.carregarAgendamentos();
+    } catch (erro) {
+      if (!mounted) return;
 
-  if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao carregar agendamentos: $erro'),
+        ),
+      );
+    }
 
-  setState(() {
-    _carregando = false;
-  });
-}
+    if (!mounted) return;
+
+    setState(() {
+      _carregando = false;
+    });
+  }
 
   String formatarData(DateTime data) {
     final dia = data.day.toString().padLeft(2, '0');
@@ -58,32 +70,45 @@ Future<void> _carregarAgendamentos() async {
     }
   }
 
+  Future<void> cancelarAgendamento(
+    Agendamento agendamento,
+  ) async {
+    try {
+      await _repository.cancelar(agendamento.id);
 
-Future<void> cancelarAgendamento(Agendamento agendamento) async {
-  await _repository.cancelar(agendamento.id);
+      if (!mounted) return;
 
-  if (!mounted) return;
+      setState(() {});
 
-  setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Agendamento cancelado com sucesso!'),
+        ),
+      );
+    } catch (erro) {
+      if (!mounted) return;
 
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(
-      content: Text('Agendamento cancelado.'),
-    ),
-  );
-}
-
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            erro.toString().replaceFirst('Exception: ', ''),
+          ),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final agendamentos = _repository.buscarTodos();
     if (_carregando) {
-  return const Scaffold(
-    body: Center(
-      child: CircularProgressIndicator(),
-    ),
-  );
-}
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    final agendamentos = _repository.buscarTodos();
 
     return Scaffold(
       appBar: AppBar(
@@ -131,6 +156,9 @@ Future<void> cancelarAgendamento(Agendamento agendamento) async {
               itemBuilder: (context, index) {
                 final agendamento = agendamentos[index];
                 final cancelado = agendamento.estaCancelado;
+                final possuiToken =
+                    agendamento.tokenCancelamento != null &&
+                    agendamento.tokenCancelamento!.isNotEmpty;
 
                 return Card(
                   color: Colors.white,
@@ -199,18 +227,31 @@ Future<void> cancelarAgendamento(Agendamento agendamento) async {
                                 ),
                               ),
                             ),
-                            if (!cancelado)
+                            if (!cancelado && possuiToken)
                               TextButton(
                                 onPressed: () {
                                   cancelarAgendamento(agendamento);
                                 },
                                 child: const Text(
                                   'Cancelar',
-                                  style: TextStyle(color: Colors.red),
+                                  style: TextStyle(
+                                    color: Colors.red,
+                                  ),
                                 ),
                               ),
                           ],
                         ),
+                        if (!cancelado && !possuiToken)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 4),
+                            child: Text(
+                              'Este agendamento antigo não possui código de cancelamento.',
+                              style: TextStyle(
+                                color: Colors.black54,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),

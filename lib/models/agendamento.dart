@@ -17,6 +17,7 @@ class Agendamento {
   Servico servico;
   DateTime dataHora;
   StatusAgendamento status;
+  String? tokenCancelamento;
 
   Agendamento({
     required this.id,
@@ -25,21 +26,19 @@ class Agendamento {
     required this.servico,
     required this.dataHora,
     this.status = StatusAgendamento.pendente,
+    this.tokenCancelamento,
   });
 
-  // Permite remarcar o horário sem criar outro objeto.
   void remarcar(DateTime novaDataHora) {
     dataHora = novaDataHora;
   }
 
-  // Preserva o histórico do agendamento ao alterar seu status.
   void cancelar() {
     status = StatusAgendamento.cancelado;
   }
 
   bool get estaCancelado => status == StatusAgendamento.cancelado;
 
-  // Converte o agendamento e seus objetos relacionados em dados JSON.
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -68,10 +67,10 @@ class Agendamento {
       },
       'dataHora': dataHora.toIso8601String(),
       'status': status.name,
+      'tokenCancelamento': tokenCancelamento,
     };
   }
 
-  // Reconstrói o agendamento a partir dos dados salvos.
   factory Agendamento.fromJson(Map<String, dynamic> json) {
     final clienteJson = Map<String, dynamic>.from(json['cliente']);
     final profissionalJson =
@@ -108,6 +107,7 @@ class Agendamento {
         (status) => status.name == json['status'],
         orElse: () => StatusAgendamento.pendente,
       ),
+      tokenCancelamento: json['tokenCancelamento'] as String?,
     );
   }
 }
